@@ -1,73 +1,126 @@
-# Welcome to your Lovable project
+# FitPro Frontend
 
-## Project info
+FitPro is a SaaS fitness coaching platform that connects **trainers and clients**.
+This repository contains the **frontend application** built with React and TypeScript.
 
-**URL**: https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID
+The frontend provides dashboards and tools for three roles:
 
-## How can I edit this code?
+* **Admin** – manage trainers, clients, and platform settings
+* **Trainer** – manage clients, workout plans, nutrition, and schedules
+* **Client** – view workouts, track progress, and communicate with trainers
 
-There are several ways of editing your application.
+---
 
-**Use Lovable**
+## Tech Stack
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and start prompting.
+* React
+* TypeScript
+* Vite
+* Tailwind CSS
+* React Router
+* Axios
 
-Changes made via Lovable will be committed automatically to this repo.
+---
 
-**Use your preferred IDE**
+## Features
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+### Authentication
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+* Login
+* Register
+* Forgot password
+* Reset password
+* Role-based access (Admin / Trainer / Client)
 
-Follow these steps:
+### Admin Dashboard
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+* Trainer management
+* Client management
+* Platform settings
+* Announcements
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+### Trainer Dashboard
 
-# Step 3: Install the necessary dependencies.
-npm i
+* Client management
+* Workout plan creation
+* Nutrition plans
+* Session scheduling
+* Messaging with clients
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
+### Client Dashboard
+
+* Workout tracking
+* Nutrition plans
+* Progress tracking
+* Session schedule
+* Messaging with trainer
+
+---
+
+## Project Structure
+
+src
+  components
+    shared
+    admin
+    trainer
+    client
+
+  pages
+    auth
+    admin
+    trainer
+    client
+
+  hooks
+  services
+  contexts
+  types
+  utils
+
+---
+
+## Environment Variables
+
+Create a `.env` file in the root of the project.
+
+Example:
+
+VITE_API_URL=http://localhost:5000/api/v1
+VITE_APP_NAME=FitPro
+
+---
+
+## Installation
+
+Clone the repository
+
+git clone https://github.com/YOUR_USERNAME/fitpro-frontend.git
+
+Install dependencies
+
+npm install
+
+Start the development server
+
 npm run dev
-```
 
-**Edit a file directly in GitHub**
+The application will run at
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+http://localhost:3000
 
-**Use GitHub Codespaces**
+---
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+## Backend
 
-## What technologies are used for this project?
+This frontend connects to the backend API located in the repository:
 
-This project is built with:
+fitpro-backend
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+The backend is built using Node.js, Express, Prisma, and PostgreSQL.
 
-## How can I deploy this project?
+---
 
-Simply open [Lovable](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and click on Share -> Publish.
+## License
 
-## Can I connect a custom domain to my Lovable project?
-
-Yes, you can!
-
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+This project is created for educational and portfolio purposes.
