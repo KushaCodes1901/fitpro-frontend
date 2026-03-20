@@ -34,6 +34,7 @@ interface AuthContextType {
   logout: () => void;
   forgotPassword: (email: string) => Promise<void>;
   resetPassword: (token: string, password: string) => Promise<void>;
+  refreshUser: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -63,6 +64,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
+  const logout = useCallback(() => {
+    setUser(null);
+    localStorage.removeItem("fitpro_user");
+    localStorage.removeItem("fitpro_token");
+  }, []);
+
+  const refreshUser = useCallback(async () => {
+    const token = localStorage.getItem("fitpro_token");
+
+    if (!token) {
+      setUser(null);
+      return;
+    }
+
+    try {
+      const response = await API.get("/users/me");
+      const mappedUser = mapBackendUser(response.data);
+
+      setUser(mappedUser);
+      localStorage.setItem("fitpro_user", JSON.stringify(mappedUser));
+    } catch {
+      logout();
+    }
+  }, [logout]);
+
   useEffect(() => {
     const storedUser = localStorage.getItem("fitpro_user");
     const storedToken = localStorage.getItem("fitpro_token");
@@ -76,8 +102,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     }
 
-    setIsLoading(false);
-  }, []);
+    refreshUser().finally(() => {
+      setIsLoading(false);
+    });
+  }, [refreshUser]);
 
   const login = useCallback(async (credentials: LoginCredentials) => {
     setIsLoading(true);
@@ -144,12 +172,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  const logout = useCallback(() => {
-    setUser(null);
-    localStorage.removeItem("fitpro_user");
-    localStorage.removeItem("fitpro_token");
-  }, []);
-
   const forgotPassword = useCallback(async (email: string) => {
     try {
       await API.post("/auth/forgot-password", { email });
@@ -196,6 +218,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         logout,
         forgotPassword,
         resetPassword,
+        refreshUser,
       }}
     >
       {children}
@@ -221,5 +244,7 @@ export function getRoleDashboardPath(role: UserRole): string {
       return "/trainer/dashboard";
     case "client":
       return "/client/dashboard";
+    default:
+      return "/";
   }
 }
