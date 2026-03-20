@@ -19,3 +19,18 @@ export const updateUserStatus = async (userId: string, isActive: boolean) => {
   const res = await API.put(`/admin/users/${userId}/status`, { isActive });
   return res.data;
 };
+
+export const getAdminSettings = async () => {
+  const res = await API.get("/admin/settings");
+  return res.data;
+};
+
+export const updateAdminSettings = async (payload: {
+  appName?: string;
+  allowRegistration?: boolean;
+  maintenanceMode?: boolean;
+  supportEmail?: string;
+}) => {
+  const res = await API.put("/admin/settings", payload);
+  return res.data;
+};
