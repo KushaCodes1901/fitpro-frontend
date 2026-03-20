@@ -18,6 +18,7 @@ import AdminTrainers from "@/pages/admin/AdminTrainers";
 import AdminClients from "@/pages/admin/AdminClients";
 import AdminSettings from "@/pages/admin/AdminSettings";
 import AdminAnnouncements from "@/pages/admin/AdminAnnouncements";
+import AdminProfile from "@/pages/admin/AdminProfile";
 
 import TrainerDashboard from "@/pages/trainer/TrainerDashboard";
 import TrainerClients from "@/pages/trainer/TrainerClients";
@@ -47,25 +48,37 @@ const App = () => (
       <BrowserRouter>
         <AuthProvider>
           <Routes>
-            {/* Public */}
             <Route path="/" element={<LandingPage />} />
             <Route path="/login" element={<LoginPage />} />
             <Route path="/register" element={<RegisterPage />} />
             <Route path="/forgot-password" element={<ForgotPasswordPage />} />
             <Route path="/reset-password/:token" element={<ResetPasswordPage />} />
 
-            {/* Admin */}
-            <Route path="/admin" element={<ProtectedRoute allowedRoles={['admin']}><DashboardLayout /></ProtectedRoute>}>
+            <Route
+              path="/admin"
+              element={
+                <ProtectedRoute allowedRoles={["admin"]}>
+                  <DashboardLayout />
+                </ProtectedRoute>
+              }
+            >
               <Route index element={<Navigate to="dashboard" replace />} />
               <Route path="dashboard" element={<AdminDashboard />} />
               <Route path="trainers" element={<AdminTrainers />} />
               <Route path="clients" element={<AdminClients />} />
               <Route path="settings" element={<AdminSettings />} />
               <Route path="announcements" element={<AdminAnnouncements />} />
+              <Route path="profile" element={<AdminProfile />} />
             </Route>
 
-            {/* Trainer */}
-            <Route path="/trainer" element={<ProtectedRoute allowedRoles={['trainer']}><DashboardLayout /></ProtectedRoute>}>
+            <Route
+              path="/trainer"
+              element={
+                <ProtectedRoute allowedRoles={["trainer"]}>
+                  <DashboardLayout />
+                </ProtectedRoute>
+              }
+            >
               <Route index element={<Navigate to="dashboard" replace />} />
               <Route path="dashboard" element={<TrainerDashboard />} />
               <Route path="clients" element={<TrainerClients />} />
@@ -76,8 +89,14 @@ const App = () => (
               <Route path="profile" element={<TrainerProfile />} />
             </Route>
 
-            {/* Client */}
-            <Route path="/client" element={<ProtectedRoute allowedRoles={['client']}><DashboardLayout /></ProtectedRoute>}>
+            <Route
+              path="/client"
+              element={
+                <ProtectedRoute allowedRoles={["client"]}>
+                  <DashboardLayout />
+                </ProtectedRoute>
+              }
+            >
               <Route index element={<Navigate to="dashboard" replace />} />
               <Route path="dashboard" element={<ClientDashboard />} />
               <Route path="workouts" element={<ClientWorkouts />} />
