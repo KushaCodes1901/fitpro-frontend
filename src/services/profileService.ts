@@ -13,6 +13,19 @@ export const updateCurrentUser = async (payload: {
   return res.data;
 };
 
+export const updateEmail = async (email: string) => {
+  const res = await API.put("/users/me/email", { email });
+  return res.data;
+};
+
+export const updatePassword = async (payload: {
+  currentPassword: string;
+  newPassword: string;
+}) => {
+  const res = await API.put("/users/me/password", payload);
+  return res.data;
+};
+
 export const updateAvatar = async (avatarUrl: string) => {
   const res = await API.put("/users/me/avatar", { avatarUrl });
   return res.data;

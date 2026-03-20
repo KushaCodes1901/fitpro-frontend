@@ -3,6 +3,8 @@ import { toast } from "@/hooks/use-toast";
 import {
   getCurrentUser,
   updateCurrentUser,
+  updateEmail,
+  updatePassword,
   updateAvatar,
   getTrainerProfile,
   updateTrainerProfile,
@@ -10,16 +12,23 @@ import {
 
 export default function TrainerProfile() {
   const [isSaving, setIsSaving] = useState(false);
+  const [isSavingSecurity, setIsSavingSecurity] = useState(false);
 
   const [form, setForm] = useState({
     firstName: "",
     lastName: "",
+    email: "",
     avatarUrl: "",
     bio: "",
     specializations: "",
     certifications: "",
     yearsExperience: "",
     phoneNumber: "",
+  });
+
+  const [security, setSecurity] = useState({
+    currentPassword: "",
+    newPassword: "",
   });
 
   const fetchProfile = async () => {
@@ -30,9 +39,10 @@ export default function TrainerProfile() {
       ]);
 
       setForm({
-        firstName: userData.firstName || userData.name?.split(" ")[0] || "",
-        lastName: userData.lastName || userData.name?.split(" ").slice(1).join(" ") || "",
-        avatarUrl: userData.avatarUrl || userData.avatar || "",
+        firstName: userData.firstName || "",
+        lastName: userData.lastName || "",
+        email: userData.email || "",
+        avatarUrl: userData.avatarUrl || "",
         bio: trainerData.bio || "",
         specializations: (trainerData.specializations || []).join(", "),
         certifications: (trainerData.certifications || []).join(", "),
@@ -62,6 +72,13 @@ export default function TrainerProfile() {
     }));
   };
 
+  const handleSecurityChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSecurity((prev) => ({
+      ...prev,
+      [e.target.name]: e.target.value,
+    }));
+  };
+
   const parseList = (value: string) =>
     value
       .split(",")
@@ -77,6 +94,7 @@ export default function TrainerProfile() {
           firstName: form.firstName,
           lastName: form.lastName,
         }),
+        updateEmail(form.email),
         updateAvatar(form.avatarUrl),
         updateTrainerProfile({
           bio: form.bio || undefined,
@@ -103,6 +121,44 @@ export default function TrainerProfile() {
       });
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const handlePasswordSave = async () => {
+    if (!security.currentPassword || !security.newPassword) {
+      toast({
+        title: "Missing fields",
+        description: "Enter both current and new password",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      setIsSavingSecurity(true);
+
+      await updatePassword({
+        currentPassword: security.currentPassword,
+        newPassword: security.newPassword,
+      });
+
+      toast({
+        title: "Password updated",
+        description: "Your password was changed successfully",
+      });
+
+      setSecurity({
+        currentPassword: "",
+        newPassword: "",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Failed to update password",
+        description: error?.response?.data?.message || "Something went wrong",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSavingSecurity(false);
     }
   };
 
@@ -139,6 +195,16 @@ export default function TrainerProfile() {
         </div>
 
         <div className="space-y-2">
+          <label className="text-sm font-medium">Email</label>
+          <input
+            name="email"
+            value={form.email}
+            onChange={handleChange}
+            className="w-full rounded-lg border bg-background px-3 py-2 text-sm"
+          />
+        </div>
+
+        <div className="space-y-2">
           <label className="text-sm font-medium">Avatar URL</label>
           <input
             name="avatarUrl"
@@ -170,9 +236,6 @@ export default function TrainerProfile() {
               className="w-full rounded-lg border bg-background px-3 py-2 text-sm"
               placeholder="Strength Training, Fat Loss"
             />
-            <p className="text-xs text-muted-foreground">
-              Separate multiple values with commas
-            </p>
           </div>
 
           <div className="space-y-2">
@@ -184,9 +247,6 @@ export default function TrainerProfile() {
               className="w-full rounded-lg border bg-background px-3 py-2 text-sm"
               placeholder="NASM CPT, ISSA"
             />
-            <p className="text-xs text-muted-foreground">
-              Separate multiple values with commas
-            </p>
           </div>
         </div>
 
@@ -221,6 +281,37 @@ export default function TrainerProfile() {
           className="gradient-primary rounded-lg px-4 py-2 text-sm font-semibold text-primary-foreground disabled:opacity-50"
         >
           {isSaving ? "Saving..." : "Save Profile"}
+        </button>
+      </div>
+
+      <div className="rounded-lg border bg-card p-5 card-shadow space-y-4">
+        <h2 className="text-lg font-semibold">Change Password</h2>
+
+        <div className="grid gap-4 md:grid-cols-2">
+          <input
+            type="password"
+            name="currentPassword"
+            value={security.currentPassword}
+            onChange={handleSecurityChange}
+            placeholder="Current password"
+            className="w-full rounded-lg border bg-background px-3 py-2 text-sm"
+          />
+          <input
+            type="password"
+            name="newPassword"
+            value={security.newPassword}
+            onChange={handleSecurityChange}
+            placeholder="New password"
+            className="w-full rounded-lg border bg-background px-3 py-2 text-sm"
+          />
+        </div>
+
+        <button
+          onClick={handlePasswordSave}
+          disabled={isSavingSecurity}
+          className="gradient-primary rounded-lg px-4 py-2 text-sm font-semibold text-primary-foreground disabled:opacity-50"
+        >
+          {isSavingSecurity ? "Updating..." : "Update Password"}
         </button>
       </div>
     </div>

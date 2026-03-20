@@ -3,16 +3,20 @@ import { toast } from "@/hooks/use-toast";
 import {
   getClientProfile,
   updateCurrentUser,
+  updateEmail,
+  updatePassword,
   updateAvatar,
   updateClientProfile,
 } from "@/services/profileService";
 
 export default function ClientProfile() {
   const [isSaving, setIsSaving] = useState(false);
+  const [isSavingSecurity, setIsSavingSecurity] = useState(false);
 
   const [form, setForm] = useState({
     firstName: "",
     lastName: "",
+    email: "",
     avatarUrl: "",
     dateOfBirth: "",
     gender: "",
@@ -20,13 +24,19 @@ export default function ClientProfile() {
     fitnessGoal: "",
   });
 
+  const [security, setSecurity] = useState({
+    currentPassword: "",
+    newPassword: "",
+  });
+
   const fetchProfile = async () => {
     try {
       const userData = await getClientProfile();
 
       setForm({
-        firstName: userData.firstName || userData.name?.split(" ")[0] || "",
-        lastName: userData.lastName || userData.name?.split(" ").slice(1).join(" ") || "",
+        firstName: userData.firstName || "",
+        lastName: userData.lastName || "",
+        email: userData.email || "",
         avatarUrl: userData.avatarUrl || userData.avatar || "",
         dateOfBirth: userData.clientProfile?.dateOfBirth
           ? new Date(userData.clientProfile.dateOfBirth).toISOString().split("T")[0]
@@ -58,6 +68,13 @@ export default function ClientProfile() {
     }));
   };
 
+  const handleSecurityChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSecurity((prev) => ({
+      ...prev,
+      [e.target.name]: e.target.value,
+    }));
+  };
+
   const handleSave = async () => {
     try {
       setIsSaving(true);
@@ -67,6 +84,7 @@ export default function ClientProfile() {
           firstName: form.firstName,
           lastName: form.lastName,
         }),
+        updateEmail(form.email),
         updateAvatar(form.avatarUrl),
         updateClientProfile({
           dateOfBirth: form.dateOfBirth || undefined,
@@ -90,6 +108,44 @@ export default function ClientProfile() {
       });
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const handlePasswordSave = async () => {
+    if (!security.currentPassword || !security.newPassword) {
+      toast({
+        title: "Missing fields",
+        description: "Enter both current and new password",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      setIsSavingSecurity(true);
+
+      await updatePassword({
+        currentPassword: security.currentPassword,
+        newPassword: security.newPassword,
+      });
+
+      toast({
+        title: "Password updated",
+        description: "Your password was changed successfully",
+      });
+
+      setSecurity({
+        currentPassword: "",
+        newPassword: "",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Failed to update password",
+        description: error?.response?.data?.message || "Something went wrong",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSavingSecurity(false);
     }
   };
 
@@ -123,6 +179,16 @@ export default function ClientProfile() {
               className="w-full rounded-lg border bg-background px-3 py-2 text-sm"
             />
           </div>
+        </div>
+
+        <div className="space-y-2">
+          <label className="text-sm font-medium">Email</label>
+          <input
+            name="email"
+            value={form.email}
+            onChange={handleChange}
+            className="w-full rounded-lg border bg-background px-3 py-2 text-sm"
+          />
         </div>
 
         <div className="space-y-2">
@@ -195,6 +261,37 @@ export default function ClientProfile() {
           className="gradient-primary rounded-lg px-4 py-2 text-sm font-semibold text-primary-foreground disabled:opacity-50"
         >
           {isSaving ? "Saving..." : "Save Profile"}
+        </button>
+      </div>
+
+      <div className="rounded-lg border bg-card p-5 card-shadow space-y-4">
+        <h2 className="text-lg font-semibold">Change Password</h2>
+
+        <div className="grid gap-4 md:grid-cols-2">
+          <input
+            type="password"
+            name="currentPassword"
+            value={security.currentPassword}
+            onChange={handleSecurityChange}
+            placeholder="Current password"
+            className="w-full rounded-lg border bg-background px-3 py-2 text-sm"
+          />
+          <input
+            type="password"
+            name="newPassword"
+            value={security.newPassword}
+            onChange={handleSecurityChange}
+            placeholder="New password"
+            className="w-full rounded-lg border bg-background px-3 py-2 text-sm"
+          />
+        </div>
+
+        <button
+          onClick={handlePasswordSave}
+          disabled={isSavingSecurity}
+          className="gradient-primary rounded-lg px-4 py-2 text-sm font-semibold text-primary-foreground disabled:opacity-50"
+        >
+          {isSavingSecurity ? "Updating..." : "Update Password"}
         </button>
       </div>
     </div>
