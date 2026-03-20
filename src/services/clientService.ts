@@ -24,3 +24,24 @@ export const getClientNutritionPlans = async () => {
   const res = await API.get("/nutrition/client");
   return res.data;
 };
+
+export const getMyProgress = async () => {
+  const res = await API.get("/client/progress");
+  return res.data;
+};
+
+export const logBodyMeasurement = async (payload: {
+  weight?: number;
+  bodyFat?: number;
+  chest?: number;
+  waist?: number;
+  hips?: number;
+  leftArm?: number;
+  rightArm?: number;
+  leftThigh?: number;
+  rightThigh?: number;
+  notes?: string;
+}) => {
+  const res = await API.post("/client/progress", payload);
+  return res.data;
+};
