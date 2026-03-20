@@ -3,47 +3,67 @@ import { Badge } from '@/components/ui/badge';
 import { UserPlus } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { useEffect, useState } from "react";
-import { getClients } from "@/services/trainerService";
-import { useAuth } from "@/contexts/AuthContext";
+import { getClients, assignClient } from "@/services/trainerService";
 
 export default function TrainerClients() {
   const [clients, setClients] = useState<any[]>([]);
   const [showInvite, setShowInvite] = useState(false);
   const [inviteEmail, setInviteEmail] = useState('');
+  const [isInviting, setIsInviting] = useState(false);
 
-  const { user } = useAuth();
   const token = localStorage.getItem("fitpro_token");
 
+  const fetchClients = async () => {
+    try {
+      if (!token) return;
+
+      const data = await getClients();
+
+      const mappedClients = data.map((client: any) => ({
+        id: client.id,
+        name: `${client.user?.firstName || ""} ${client.user?.lastName || ""}`.trim(),
+        email: client.user?.email || "",
+        plan: "No Plan",
+        lastActive: "—",
+        raw: client,
+      }));
+
+      setClients(mappedClients);
+    } catch (error) {
+      console.error("Error fetching clients:", error);
+    }
+  };
+
   useEffect(() => {
-    const fetchClients = async () => {
-      try {
-        if (!token) return;
-  
-        const data = await getClients(token);
-  
-        const mappedClients = data.map((client: any) => ({
-          id: client.id,
-          name: `${client.user?.firstName || ""} ${client.user?.lastName || ""}`.trim(),
-          email: client.user?.email || "",
-          plan: "No Plan",
-          lastActive: "—",
-          raw: client,
-        }));
-  
-        setClients(mappedClients);
-      } catch (error) {
-        console.error("Error fetching clients:", error);
-      }
-    };
-  
     fetchClients();
   }, [token]);
 
-  const handleInvite = () => {
+  const handleInvite = async () => {
     if (!inviteEmail.trim()) return;
-    toast({ title: 'Invitation sent', description: `Invited ${inviteEmail}` });
-    setInviteEmail('');
-    setShowInvite(false);
+
+    try {
+      setIsInviting(true);
+
+      await assignClient(inviteEmail);
+
+      toast({
+        title: "Client assigned",
+        description: `${inviteEmail} has been added to your client list.`,
+      });
+
+      setInviteEmail("");
+      setShowInvite(false);
+
+      await fetchClients();
+    } catch (error: any) {
+      toast({
+        title: "Failed to assign client",
+        description: error?.response?.data?.message || "Something went wrong",
+        variant: "destructive",
+      });
+    } finally {
+      setIsInviting(false);
+    }
   };
 
   return (
@@ -66,14 +86,15 @@ export default function TrainerClients() {
           <input
             placeholder="Client email"
             value={inviteEmail}
-            onChange={e => setInviteEmail(e.target.value)}
+            onChange={(e) => setInviteEmail(e.target.value)}
             className="flex-1 rounded-lg border bg-background px-3 py-2 text-sm outline-none ring-ring focus:ring-2"
           />
           <button
             onClick={handleInvite}
-            className="gradient-primary rounded-lg px-4 py-2 text-sm font-semibold text-primary-foreground"
+            disabled={isInviting}
+            className="gradient-primary rounded-lg px-4 py-2 text-sm font-semibold text-primary-foreground disabled:opacity-50"
           >
-            Send
+            {isInviting ? "Sending..." : "Send"}
           </button>
           <button
             onClick={() => setShowInvite(false)}

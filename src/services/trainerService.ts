@@ -1,12 +1,11 @@
-import axios from "axios";
+import API from "@/lib/api";
 
-const API = "http://localhost:5000/api/v1";
+export const getClients = async () => {
+  const res = await API.get("/trainer/clients");
+  return res.data;
+};
 
-export const getClients = async (token: string) => {
-  const res = await axios.get(`${API}/trainer/clients`, {
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
-  });
+export const assignClient = async (clientEmail: string) => {
+  const res = await API.post("/trainer/clients/assign", { clientEmail });
   return res.data;
 };
