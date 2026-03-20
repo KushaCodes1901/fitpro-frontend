@@ -5,6 +5,7 @@ import { getClients } from "@/services/trainerService";
 import {
   getTrainerNutritionPlans,
   createNutritionPlan,
+  updateNutritionPlan,
   assignNutritionPlanToClient,
 } from "@/services/nutritionService";
 
@@ -14,9 +15,10 @@ export default function TrainerNutrition() {
   const [selectedPlanId, setSelectedPlanId] = useState("");
   const [selectedClientEmail, setSelectedClientEmail] = useState("");
   const [isAssigning, setIsAssigning] = useState(false);
-  const [isCreating, setIsCreating] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [editingPlanId, setEditingPlanId] = useState<string | null>(null);
 
-  const [form, setForm] = useState({
+  const emptyForm = {
     name: "",
     description: "",
     dailyCalories: "",
@@ -35,7 +37,9 @@ export default function TrainerNutrition() {
     lunchProtein: "",
     lunchCarbs: "",
     lunchFat: "",
-  });
+  };
+
+  const [form, setForm] = useState(emptyForm);
 
   const fetchData = async () => {
     try {
@@ -75,7 +79,39 @@ export default function TrainerNutrition() {
     }));
   };
 
-  const handleCreatePlan = async () => {
+  const buildMeals = () => {
+    return [
+      form.breakfastName.trim()
+        ? {
+            name: form.breakfastName,
+            description: form.breakfastDescription || undefined,
+            calories: form.breakfastCalories ? Number(form.breakfastCalories) : undefined,
+            protein: form.breakfastProtein ? Number(form.breakfastProtein) : undefined,
+            carbs: form.breakfastCarbs ? Number(form.breakfastCarbs) : undefined,
+            fat: form.breakfastFat ? Number(form.breakfastFat) : undefined,
+            sortOrder: 1,
+          }
+        : null,
+      form.lunchName.trim()
+        ? {
+            name: form.lunchName,
+            description: form.lunchDescription || undefined,
+            calories: form.lunchCalories ? Number(form.lunchCalories) : undefined,
+            protein: form.lunchProtein ? Number(form.lunchProtein) : undefined,
+            carbs: form.lunchCarbs ? Number(form.lunchCarbs) : undefined,
+            fat: form.lunchFat ? Number(form.lunchFat) : undefined,
+            sortOrder: 2,
+          }
+        : null,
+    ].filter(Boolean);
+  };
+
+  const resetForm = () => {
+    setForm(emptyForm);
+    setEditingPlanId(null);
+  };
+
+  const handleSavePlan = async () => {
     if (!form.name.trim()) {
       toast({
         title: "Missing name",
@@ -86,79 +122,72 @@ export default function TrainerNutrition() {
     }
 
     try {
-      setIsCreating(true);
+      setIsSaving(true);
 
-      const meals = [
-        form.breakfastName.trim()
-          ? {
-              name: form.breakfastName,
-              description: form.breakfastDescription || undefined,
-              calories: form.breakfastCalories ? Number(form.breakfastCalories) : undefined,
-              protein: form.breakfastProtein ? Number(form.breakfastProtein) : undefined,
-              carbs: form.breakfastCarbs ? Number(form.breakfastCarbs) : undefined,
-              fat: form.breakfastFat ? Number(form.breakfastFat) : undefined,
-              sortOrder: 1,
-            }
-          : null,
-        form.lunchName.trim()
-          ? {
-              name: form.lunchName,
-              description: form.lunchDescription || undefined,
-              calories: form.lunchCalories ? Number(form.lunchCalories) : undefined,
-              protein: form.lunchProtein ? Number(form.lunchProtein) : undefined,
-              carbs: form.lunchCarbs ? Number(form.lunchCarbs) : undefined,
-              fat: form.lunchFat ? Number(form.lunchFat) : undefined,
-              sortOrder: 2,
-            }
-          : null,
-      ].filter(Boolean);
-
-      await createNutritionPlan({
+      const payload = {
         name: form.name,
         description: form.description || undefined,
         dailyCalories: form.dailyCalories ? Number(form.dailyCalories) : undefined,
         proteinGrams: form.proteinGrams ? Number(form.proteinGrams) : undefined,
         carbsGrams: form.carbsGrams ? Number(form.carbsGrams) : undefined,
         fatGrams: form.fatGrams ? Number(form.fatGrams) : undefined,
-        meals: meals as any[],
-      });
+        meals: buildMeals() as any[],
+      };
 
-      toast({
-        title: "Plan created",
-        description: "Nutrition plan created successfully",
-      });
+      if (editingPlanId) {
+        await updateNutritionPlan(editingPlanId, payload);
+        toast({
+          title: "Plan updated",
+          description: "Nutrition plan updated successfully",
+        });
+      } else {
+        await createNutritionPlan(payload);
+        toast({
+          title: "Plan created",
+          description: "Nutrition plan created successfully",
+        });
+      }
 
-      setForm({
-        name: "",
-        description: "",
-        dailyCalories: "",
-        proteinGrams: "",
-        carbsGrams: "",
-        fatGrams: "",
-        breakfastName: "",
-        breakfastDescription: "",
-        breakfastCalories: "",
-        breakfastProtein: "",
-        breakfastCarbs: "",
-        breakfastFat: "",
-        lunchName: "",
-        lunchDescription: "",
-        lunchCalories: "",
-        lunchProtein: "",
-        lunchCarbs: "",
-        lunchFat: "",
-      });
-
+      resetForm();
       await fetchData();
     } catch (error: any) {
       toast({
-        title: "Create failed",
-        description: error?.response?.data?.message || "Could not create plan",
+        title: editingPlanId ? "Update failed" : "Create failed",
+        description: error?.response?.data?.message || "Could not save plan",
         variant: "destructive",
       });
     } finally {
-      setIsCreating(false);
+      setIsSaving(false);
     }
+  };
+
+  const handleEditPlan = (plan: any) => {
+    const breakfast = plan.meals?.find((m: any) => m.sortOrder === 1) || {};
+    const lunch = plan.meals?.find((m: any) => m.sortOrder === 2) || {};
+
+    setEditingPlanId(plan.id);
+    setForm({
+      name: plan.name || "",
+      description: plan.description || "",
+      dailyCalories: plan.dailyCalories?.toString() || "",
+      proteinGrams: plan.proteinGrams?.toString() || "",
+      carbsGrams: plan.carbsGrams?.toString() || "",
+      fatGrams: plan.fatGrams?.toString() || "",
+      breakfastName: breakfast.name || "",
+      breakfastDescription: breakfast.description || "",
+      breakfastCalories: breakfast.calories?.toString() || "",
+      breakfastProtein: breakfast.protein?.toString() || "",
+      breakfastCarbs: breakfast.carbs?.toString() || "",
+      breakfastFat: breakfast.fat?.toString() || "",
+      lunchName: lunch.name || "",
+      lunchDescription: lunch.description || "",
+      lunchCalories: lunch.calories?.toString() || "",
+      lunchProtein: lunch.protein?.toString() || "",
+      lunchCarbs: lunch.carbs?.toString() || "",
+      lunchFat: lunch.fat?.toString() || "",
+    });
+
+    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   const handleAssignPlan = async () => {
@@ -173,7 +202,6 @@ export default function TrainerNutrition() {
 
     try {
       setIsAssigning(true);
-
       await assignNutritionPlanToClient(selectedPlanId, selectedClientEmail);
 
       toast({
@@ -199,171 +227,72 @@ export default function TrainerNutrition() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold">Nutrition Plans</h1>
-        <p className="text-muted-foreground">Create and assign nutrition plans</p>
+        <p className="text-muted-foreground">Create, edit and assign nutrition plans</p>
       </div>
 
       <div className="rounded-lg border bg-card p-5 space-y-4">
-        <h2 className="text-lg font-semibold">Create Nutrition Plan</h2>
+        <h2 className="text-lg font-semibold">
+          {editingPlanId ? "Edit Nutrition Plan" : "Create Nutrition Plan"}
+        </h2>
 
         <div className="grid gap-3 md:grid-cols-2">
-          <input
-            name="name"
-            value={form.name}
-            onChange={handleChange}
-            placeholder="Plan name"
-            className="rounded-lg border bg-background px-3 py-2 text-sm"
-          />
-          <input
-            name="description"
-            value={form.description}
-            onChange={handleChange}
-            placeholder="Description"
-            className="rounded-lg border bg-background px-3 py-2 text-sm"
-          />
-          <input
-            name="dailyCalories"
-            value={form.dailyCalories}
-            onChange={handleChange}
-            placeholder="Daily calories"
-            className="rounded-lg border bg-background px-3 py-2 text-sm"
-          />
-          <input
-            name="proteinGrams"
-            value={form.proteinGrams}
-            onChange={handleChange}
-            placeholder="Protein grams"
-            className="rounded-lg border bg-background px-3 py-2 text-sm"
-          />
-          <input
-            name="carbsGrams"
-            value={form.carbsGrams}
-            onChange={handleChange}
-            placeholder="Carbs grams"
-            className="rounded-lg border bg-background px-3 py-2 text-sm"
-          />
-          <input
-            name="fatGrams"
-            value={form.fatGrams}
-            onChange={handleChange}
-            placeholder="Fat grams"
-            className="rounded-lg border bg-background px-3 py-2 text-sm"
-          />
+          <input name="name" value={form.name} onChange={handleChange} placeholder="Plan name" className="rounded-lg border bg-background px-3 py-2 text-sm" />
+          <input name="description" value={form.description} onChange={handleChange} placeholder="Description" className="rounded-lg border bg-background px-3 py-2 text-sm" />
+          <input name="dailyCalories" value={form.dailyCalories} onChange={handleChange} placeholder="Daily calories" className="rounded-lg border bg-background px-3 py-2 text-sm" />
+          <input name="proteinGrams" value={form.proteinGrams} onChange={handleChange} placeholder="Protein grams" className="rounded-lg border bg-background px-3 py-2 text-sm" />
+          <input name="carbsGrams" value={form.carbsGrams} onChange={handleChange} placeholder="Carbs grams" className="rounded-lg border bg-background px-3 py-2 text-sm" />
+          <input name="fatGrams" value={form.fatGrams} onChange={handleChange} placeholder="Fat grams" className="rounded-lg border bg-background px-3 py-2 text-sm" />
         </div>
 
         <div className="rounded-lg border p-4 space-y-3">
           <h3 className="font-medium">Breakfast</h3>
           <div className="grid gap-3 md:grid-cols-2">
-            <input
-              name="breakfastName"
-              value={form.breakfastName}
-              onChange={handleChange}
-              placeholder="Meal name"
-              className="rounded-lg border bg-background px-3 py-2 text-sm"
-            />
-            <input
-              name="breakfastDescription"
-              value={form.breakfastDescription}
-              onChange={handleChange}
-              placeholder="Description"
-              className="rounded-lg border bg-background px-3 py-2 text-sm"
-            />
-            <input
-              name="breakfastCalories"
-              value={form.breakfastCalories}
-              onChange={handleChange}
-              placeholder="Calories"
-              className="rounded-lg border bg-background px-3 py-2 text-sm"
-            />
-            <input
-              name="breakfastProtein"
-              value={form.breakfastProtein}
-              onChange={handleChange}
-              placeholder="Protein"
-              className="rounded-lg border bg-background px-3 py-2 text-sm"
-            />
-            <input
-              name="breakfastCarbs"
-              value={form.breakfastCarbs}
-              onChange={handleChange}
-              placeholder="Carbs"
-              className="rounded-lg border bg-background px-3 py-2 text-sm"
-            />
-            <input
-              name="breakfastFat"
-              value={form.breakfastFat}
-              onChange={handleChange}
-              placeholder="Fat"
-              className="rounded-lg border bg-background px-3 py-2 text-sm"
-            />
+            <input name="breakfastName" value={form.breakfastName} onChange={handleChange} placeholder="Meal name" className="rounded-lg border bg-background px-3 py-2 text-sm" />
+            <input name="breakfastDescription" value={form.breakfastDescription} onChange={handleChange} placeholder="Description" className="rounded-lg border bg-background px-3 py-2 text-sm" />
+            <input name="breakfastCalories" value={form.breakfastCalories} onChange={handleChange} placeholder="Calories" className="rounded-lg border bg-background px-3 py-2 text-sm" />
+            <input name="breakfastProtein" value={form.breakfastProtein} onChange={handleChange} placeholder="Protein" className="rounded-lg border bg-background px-3 py-2 text-sm" />
+            <input name="breakfastCarbs" value={form.breakfastCarbs} onChange={handleChange} placeholder="Carbs" className="rounded-lg border bg-background px-3 py-2 text-sm" />
+            <input name="breakfastFat" value={form.breakfastFat} onChange={handleChange} placeholder="Fat" className="rounded-lg border bg-background px-3 py-2 text-sm" />
           </div>
         </div>
 
         <div className="rounded-lg border p-4 space-y-3">
           <h3 className="font-medium">Lunch</h3>
           <div className="grid gap-3 md:grid-cols-2">
-            <input
-              name="lunchName"
-              value={form.lunchName}
-              onChange={handleChange}
-              placeholder="Meal name"
-              className="rounded-lg border bg-background px-3 py-2 text-sm"
-            />
-            <input
-              name="lunchDescription"
-              value={form.lunchDescription}
-              onChange={handleChange}
-              placeholder="Description"
-              className="rounded-lg border bg-background px-3 py-2 text-sm"
-            />
-            <input
-              name="lunchCalories"
-              value={form.lunchCalories}
-              onChange={handleChange}
-              placeholder="Calories"
-              className="rounded-lg border bg-background px-3 py-2 text-sm"
-            />
-            <input
-              name="lunchProtein"
-              value={form.lunchProtein}
-              onChange={handleChange}
-              placeholder="Protein"
-              className="rounded-lg border bg-background px-3 py-2 text-sm"
-            />
-            <input
-              name="lunchCarbs"
-              value={form.lunchCarbs}
-              onChange={handleChange}
-              placeholder="Carbs"
-              className="rounded-lg border bg-background px-3 py-2 text-sm"
-            />
-            <input
-              name="lunchFat"
-              value={form.lunchFat}
-              onChange={handleChange}
-              placeholder="Fat"
-              className="rounded-lg border bg-background px-3 py-2 text-sm"
-            />
+            <input name="lunchName" value={form.lunchName} onChange={handleChange} placeholder="Meal name" className="rounded-lg border bg-background px-3 py-2 text-sm" />
+            <input name="lunchDescription" value={form.lunchDescription} onChange={handleChange} placeholder="Description" className="rounded-lg border bg-background px-3 py-2 text-sm" />
+            <input name="lunchCalories" value={form.lunchCalories} onChange={handleChange} placeholder="Calories" className="rounded-lg border bg-background px-3 py-2 text-sm" />
+            <input name="lunchProtein" value={form.lunchProtein} onChange={handleChange} placeholder="Protein" className="rounded-lg border bg-background px-3 py-2 text-sm" />
+            <input name="lunchCarbs" value={form.lunchCarbs} onChange={handleChange} placeholder="Carbs" className="rounded-lg border bg-background px-3 py-2 text-sm" />
+            <input name="lunchFat" value={form.lunchFat} onChange={handleChange} placeholder="Fat" className="rounded-lg border bg-background px-3 py-2 text-sm" />
           </div>
         </div>
 
-        <button
-          onClick={handleCreatePlan}
-          disabled={isCreating}
-          className="gradient-primary rounded-lg px-4 py-2 text-sm font-semibold text-primary-foreground disabled:opacity-50"
-        >
-          {isCreating ? "Creating..." : "Create Plan"}
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={handleSavePlan}
+            disabled={isSaving}
+            className="gradient-primary rounded-lg px-4 py-2 text-sm font-semibold text-primary-foreground disabled:opacity-50"
+          >
+            {isSaving ? "Saving..." : editingPlanId ? "Update Plan" : "Create Plan"}
+          </button>
+
+          {editingPlanId && (
+            <button
+              onClick={resetForm}
+              className="rounded-lg border px-4 py-2 text-sm"
+            >
+              Cancel Edit
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="rounded-lg border bg-card p-5 space-y-4">
         <h2 className="text-lg font-semibold">Assign Nutrition Plan</h2>
 
         <div className="grid gap-3 md:grid-cols-2">
-          <select
-            value={selectedPlanId}
-            onChange={(e) => setSelectedPlanId(e.target.value)}
-            className="rounded-lg border bg-background px-3 py-2 text-sm"
-          >
+          <select value={selectedPlanId} onChange={(e) => setSelectedPlanId(e.target.value)} className="rounded-lg border bg-background px-3 py-2 text-sm">
             <option value="">Select a plan</option>
             {plans.map((plan) => (
               <option key={plan.id} value={plan.id}>
@@ -372,11 +301,7 @@ export default function TrainerNutrition() {
             ))}
           </select>
 
-          <select
-            value={selectedClientEmail}
-            onChange={(e) => setSelectedClientEmail(e.target.value)}
-            className="rounded-lg border bg-background px-3 py-2 text-sm"
-          >
+          <select value={selectedClientEmail} onChange={(e) => setSelectedClientEmail(e.target.value)} className="rounded-lg border bg-background px-3 py-2 text-sm">
             <option value="">Select a client</option>
             {clients.map((client) => (
               <option key={client.id} value={client.email}>
@@ -436,10 +361,17 @@ export default function TrainerNutrition() {
                 ))}
               </div>
 
-              <div className="mt-4">
+              <div className="mt-4 flex items-center justify-between">
                 <Badge variant="outline">
                   {plan.assignments?.length || 0} assigned
                 </Badge>
+
+                <button
+                  onClick={() => handleEditPlan(plan)}
+                  className="text-sm text-primary hover:underline"
+                >
+                  Edit
+                </button>
               </div>
             </div>
           ))
