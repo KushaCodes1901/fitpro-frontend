@@ -156,49 +156,49 @@ export default function ClientProgress() {
             name="chest"
             value={form.chest}
             onChange={handleChange}
-            placeholder="Chest"
+            placeholder="Chest (cm)"
             className="rounded-lg border bg-background px-3 py-2 text-sm"
           />
           <input
             name="waist"
             value={form.waist}
             onChange={handleChange}
-            placeholder="Waist"
+            placeholder="Waist (cm)"
             className="rounded-lg border bg-background px-3 py-2 text-sm"
           />
           <input
             name="hips"
             value={form.hips}
             onChange={handleChange}
-            placeholder="Hips"
+            placeholder="Hips (cm)"
             className="rounded-lg border bg-background px-3 py-2 text-sm"
           />
           <input
             name="leftArm"
             value={form.leftArm}
             onChange={handleChange}
-            placeholder="Left Arm"
+            placeholder="Left Arm (cm)"
             className="rounded-lg border bg-background px-3 py-2 text-sm"
           />
           <input
             name="rightArm"
             value={form.rightArm}
             onChange={handleChange}
-            placeholder="Right Arm"
+            placeholder="Right Arm (cm)"
             className="rounded-lg border bg-background px-3 py-2 text-sm"
           />
           <input
             name="leftThigh"
             value={form.leftThigh}
             onChange={handleChange}
-            placeholder="Left Thigh"
+            placeholder="Left Thigh (cm)"
             className="rounded-lg border bg-background px-3 py-2 text-sm"
           />
           <input
             name="rightThigh"
             value={form.rightThigh}
             onChange={handleChange}
-            placeholder="Right Thigh"
+            placeholder="Right Thigh (cm)"
             className="rounded-lg border bg-background px-3 py-2 text-sm"
           />
         </div>
