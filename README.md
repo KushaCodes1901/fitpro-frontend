@@ -1,126 +1,303 @@
 # FitPro Frontend
 
-FitPro is a SaaS fitness coaching platform that connects **trainers and clients**.
-This repository contains the **frontend application** built with React and TypeScript.
+Frontend app for the FitPro SaaS platform.
 
-The frontend provides dashboards and tools for three roles:
+This application provides role-based dashboards for:
 
-* **Admin** – manage trainers, clients, and platform settings
-* **Trainer** – manage clients, workout plans, nutrition, and schedules
-* **Client** – view workouts, track progress, and communicate with trainers
+- Admin
+- Trainer
+- Client
 
----
-
-## Tech Stack
-
-* React
-* TypeScript
-* Vite
-* Tailwind CSS
-* React Router
-* Axios
+It connects directly to the FitPro backend API.
 
 ---
 
-## Features
+## 1. Tech Stack
 
-### Authentication
-
-* Login
-* Register
-* Forgot password
-* Reset password
-* Role-based access (Admin / Trainer / Client)
-
-### Admin Dashboard
-
-* Trainer management
-* Client management
-* Platform settings
-* Announcements
-
-### Trainer Dashboard
-
-* Client management
-* Workout plan creation
-* Nutrition plans
-* Session scheduling
-* Messaging with clients
-
-### Client Dashboard
-
-* Workout tracking
-* Nutrition plans
-* Progress tracking
-* Session schedule
-* Messaging with trainer
+- React
+- TypeScript
+- Vite
+- Tailwind CSS
+- shadcn/ui
+- Axios
+- React Router
 
 ---
 
-## Project Structure
+## 2. Requirements
 
-src
-  components
-    shared
-    admin
-    trainer
-    client
+Before running the frontend, install:
 
-  pages
-    auth
-    admin
-    trainer
-    client
+### Required
+- Node.js 20+ recommended
+- npm
+- Git
 
-  hooks
-  services
-  contexts
-  types
-  utils
+### Required for full app usage
+- FitPro backend must already be running
+- PostgreSQL must already be set up for backend
 
 ---
 
-## Environment Variables
+## 3. Clone the Repository
 
-Create a `.env` file in the root of the project.
+```bash
+git clone <YOUR_FRONTEND_REPO_URL>
+cd fitpro-frontend
+4. Install Dependencies
+npm install
+5. Create Environment File
 
-Example:
+Create a file named:
+
+.env
+
+in the frontend root.
+
+Use:
 
 VITE_API_URL=http://localhost:5000/api/v1
 VITE_APP_NAME=FitPro
+6. Important Backend Requirement
 
----
+Before starting the frontend, make sure the backend is already running.
 
-## Installation
+Backend should run on:
 
-Clone the repository
+http://localhost:5000
 
-git clone https://github.com/YOUR_USERNAME/fitpro-frontend.git
+And backend .env should include:
 
-Install dependencies
+FRONTEND_URL=http://localhost:8080
 
-npm install
+Without that, login may fail because of CORS.
 
-Start the development server
-
+7. Start the Frontend
 npm run dev
 
-The application will run at
+Frontend should run on:
 
-http://localhost:3000
+http://localhost:8080
 
----
+Open that URL in your browser.
 
-## Backend
+8. Login / Test Users
 
-This frontend connects to the backend API located in the repository:
+Use users that exist in the backend database.
 
-fitpro-backend
+Recommended test users:
 
-The backend is built using Node.js, Express, Prisma, and PostgreSQL.
+Admin
+Email: admin@fitpro.com
+Password: Admin123!
+Trainer
+Email: sarah_j.trainer@fitpro.com
+Password: SarahJTrainer123!
+Client
+Email: mike_c.client@fitpro.com
+Password: MikeCClient123!
 
----
+If these users do not exist, create them through:
 
-## License
+backend seed
+frontend register page
+Postman
+9. Frontend Routes
+Public Routes
+/
+/login
+/register
+/forgot-password
+/reset-password/:token
+Admin Routes
+/admin/dashboard
+/admin/trainers
+/admin/clients
+/admin/settings
+/admin/announcements
+/admin/profile
+Trainer Routes
+/trainer/dashboard
+/trainer/clients
+/trainer/plans
+/trainer/nutrition
+/trainer/schedule
+/trainer/messages
+/trainer/profile
+Client Routes
+/client/dashboard
+/client/workouts
+/client/nutrition
+/client/progress
+/client/schedule
+/client/messages
+/client/profile
+10. Main Features
+Authentication
+login
+register
+forgot password
+reset password
+persistent session after refresh
+Admin
+analytics dashboard
+trainers list
+clients list
+settings
+announcements
+notifications
+profile
+Trainer
+dashboard
+clients list
+assign client
+workout plans
+nutrition plans
+edit nutrition plans
+sessions
+messages
+notifications
+profile
+Client
+dashboard
+workouts
+nutrition
+progress
+sessions
+messages
+notifications
+profile
+11. Running the Full App
+Terminal 1 — backend
+cd fitpro-backend
+npm run dev
+Terminal 2 — frontend
+cd fitpro-frontend
+npm run dev
 
-This project is created for educational and portfolio purposes.
+Then open:
+
+http://localhost:8080
+12. Recommended First-Time Setup Checklist
+Step 1
+
+Install Node.js
+
+Step 2
+
+Clone frontend repo
+
+Step 3
+
+Run:
+
+npm install
+Step 4
+
+Create .env
+
+Step 5
+
+Make sure backend is already running
+
+Step 6
+
+Run:
+
+npm run dev
+Step 7
+
+Open browser at:
+
+http://localhost:8080
+Step 8
+
+Login with an existing seeded user
+
+13. Common Commands
+Install dependencies
+npm install
+Start dev server
+npm run dev
+Build production bundle
+npm run build
+Preview production build
+npm run preview
+14. Project Structure
+fitpro-frontend/
+├── public/
+├── src/
+│   ├── components/
+│   ├── contexts/
+│   ├── hooks/
+│   ├── lib/
+│   ├── pages/
+│   │   ├── admin/
+│   │   ├── auth/
+│   │   ├── client/
+│   │   └── trainer/
+│   ├── services/
+│   ├── test/
+│   ├── types/
+│   ├── App.tsx
+│   ├── main.tsx
+│   └── index.css
+├── .env
+├── package.json
+└── README.md
+15. API Connection
+
+Frontend uses:
+
+VITE_API_URL=http://localhost:5000/api/v1
+
+That means all frontend services point to backend routes like:
+
+/auth/login
+/users/me
+/trainer/clients
+/nutrition/client
+/notifications
+16. Notifications
+
+The bell icon in the dashboard layout reads real notifications from backend.
+
+Users can receive notifications for:
+
+new messages
+new sessions
+workout plan assigned
+nutrition plan assigned
+account status changes
+announcements
+17. Troubleshooting
+Invalid credentials
+
+Usually one of these:
+
+backend not running
+wrong email/password
+backend CORS issue
+wrong VITE_API_URL
+Blank page or broken route
+
+Check:
+
+backend is running
+frontend console
+App.tsx routes
+user role
+Login works in Postman but not frontend
+
+Usually backend .env has wrong FRONTEND_URL
+
+Correct value:
+
+FRONTEND_URL=http://localhost:8080
+Notifications not showing
+
+Check:
+
+backend notifications endpoint
+user has notifications in DB
+page refreshed or bell polling has run
