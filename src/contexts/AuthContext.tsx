@@ -1,6 +1,29 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { User, UserRole, LoginCredentials, RegisterData } from '@/types';
-import { toast } from '@/hooks/use-toast';
+import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
+import API from "@/lib/api";
+import { toast } from "@/hooks/use-toast";
+
+type UserRole = "admin" | "trainer" | "client";
+
+interface User {
+  id: string;
+  name: string;
+  email: string;
+  role: UserRole;
+  avatar?: string;
+  createdAt?: string;
+}
+
+interface LoginCredentials {
+  email: string;
+  password: string;
+}
+
+interface RegisterData {
+  name: string;
+  email: string;
+  password: string;
+  role: UserRole;
+}
 
 interface AuthContextType {
   user: User | null;
@@ -15,77 +38,166 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Demo users for frontend demo
-const DEMO_USERS: Record<string, User> = {
-  'admin@fitpro.com': { id: '1', name: 'Admin User', email: 'admin@fitpro.com', role: 'admin', createdAt: '2024-01-01' },
-  'trainer@fitpro.com': { id: '2', name: 'Sarah Johnson', email: 'trainer@fitpro.com', role: 'trainer', avatar: '', createdAt: '2024-01-15' },
-  'client@fitpro.com': { id: '3', name: 'Mike Chen', email: 'client@fitpro.com', role: 'client', avatar: '', createdAt: '2024-02-01' },
-};
+function normalizeRole(role: string): UserRole {
+  const value = role.toLowerCase();
+
+  if (value === "admin" || value === "trainer" || value === "client") {
+    return value;
+  }
+
+  return "client";
+}
+
+function mapBackendUser(user: any): User {
+  return {
+    id: user.id,
+    name: `${user.firstName ?? ""} ${user.lastName ?? ""}`.trim(),
+    email: user.email,
+    role: normalizeRole(user.role),
+    avatar: user.avatarUrl || "",
+    createdAt: user.createdAt,
+  };
+}
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const stored = localStorage.getItem('fitpro_user');
-    if (stored) {
-      try { setUser(JSON.parse(stored)); } catch { /* ignore */ }
+    const storedUser = localStorage.getItem("fitpro_user");
+    const storedToken = localStorage.getItem("fitpro_token");
+
+    if (storedUser && storedToken) {
+      try {
+        setUser(JSON.parse(storedUser));
+      } catch {
+        localStorage.removeItem("fitpro_user");
+        localStorage.removeItem("fitpro_token");
+      }
     }
+
     setIsLoading(false);
   }, []);
 
   const login = useCallback(async (credentials: LoginCredentials) => {
     setIsLoading(true);
-    // Simulate API call
-    await new Promise(r => setTimeout(r, 800));
-    const demoUser = DEMO_USERS[credentials.email];
-    if (demoUser && credentials.password === 'password') {
-      setUser(demoUser);
-      localStorage.setItem('fitpro_user', JSON.stringify(demoUser));
-      localStorage.setItem('fitpro_token', 'demo-token');
-      toast({ title: 'Welcome back!', description: `Logged in as ${demoUser.name}` });
-    } else {
+
+    try {
+      const response = await API.post("/auth/login", credentials);
+      const { user: backendUser, accessToken } = response.data;
+
+      const mappedUser = mapBackendUser(backendUser);
+
+      setUser(mappedUser);
+      localStorage.setItem("fitpro_user", JSON.stringify(mappedUser));
+      localStorage.setItem("fitpro_token", accessToken);
+
+      toast({
+        title: "Welcome back!",
+        description: `Logged in as ${mappedUser.name}`,
+      });
+    } catch (error: any) {
+      const message =
+        error?.response?.data?.message || "Invalid credentials";
+
+      throw new Error(message);
+    } finally {
       setIsLoading(false);
-      throw new Error('Invalid credentials. Try admin@fitpro.com / password');
     }
-    setIsLoading(false);
   }, []);
 
   const register = useCallback(async (data: RegisterData) => {
     setIsLoading(true);
-    await new Promise(r => setTimeout(r, 800));
-    const newUser: User = {
-      id: crypto.randomUUID(),
-      name: data.name,
-      email: data.email,
-      role: data.role,
-      createdAt: new Date().toISOString(),
-    };
-    setUser(newUser);
-    localStorage.setItem('fitpro_user', JSON.stringify(newUser));
-    localStorage.setItem('fitpro_token', 'demo-token');
-    toast({ title: 'Account created!', description: 'Welcome to FitPro' });
-    setIsLoading(false);
+
+    try {
+      const [firstName, ...rest] = data.name.trim().split(" ");
+      const lastName = rest.join(" ") || "User";
+
+      const payload = {
+        email: data.email,
+        password: data.password,
+        firstName,
+        lastName,
+        role: data.role.toUpperCase(),
+      };
+
+      const response = await API.post("/auth/register", payload);
+      const { user: backendUser, accessToken } = response.data;
+
+      const mappedUser = mapBackendUser(backendUser);
+
+      setUser(mappedUser);
+      localStorage.setItem("fitpro_user", JSON.stringify(mappedUser));
+      localStorage.setItem("fitpro_token", accessToken);
+
+      toast({
+        title: "Account created!",
+        description: "Welcome to FitPro",
+      });
+    } catch (error: any) {
+      const message =
+        error?.response?.data?.message || "Registration failed";
+
+      throw new Error(message);
+    } finally {
+      setIsLoading(false);
+    }
   }, []);
 
   const logout = useCallback(() => {
     setUser(null);
-    localStorage.removeItem('fitpro_user');
-    localStorage.removeItem('fitpro_token');
+    localStorage.removeItem("fitpro_user");
+    localStorage.removeItem("fitpro_token");
   }, []);
 
   const forgotPassword = useCallback(async (email: string) => {
-    await new Promise(r => setTimeout(r, 800));
-    toast({ title: 'Email sent', description: 'Check your inbox for reset instructions' });
+    try {
+      await API.post("/auth/forgot-password", { email });
+
+      toast({
+        title: "Reset link requested",
+        description: "Check the response for the reset token in development.",
+      });
+    } catch (error: any) {
+      const message =
+        error?.response?.data?.message || "Forgot password failed";
+
+      throw new Error(message);
+    }
   }, []);
 
-  const resetPassword = useCallback(async (_token: string, _password: string) => {
-    await new Promise(r => setTimeout(r, 800));
-    toast({ title: 'Password reset', description: 'You can now login with your new password' });
+  const resetPassword = useCallback(async (token: string, password: string) => {
+    try {
+      await API.post("/auth/reset-password", {
+        token,
+        newPassword: password,
+      });
+
+      toast({
+        title: "Password reset",
+        description: "You can now log in with your new password",
+      });
+    } catch (error: any) {
+      const message =
+        error?.response?.data?.message || "Reset password failed";
+
+      throw new Error(message);
+    }
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, isAuthenticated: !!user, isLoading, login, register, logout, forgotPassword, resetPassword }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        isAuthenticated: !!user,
+        isLoading,
+        login,
+        register,
+        logout,
+        forgotPassword,
+        resetPassword,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );
@@ -93,14 +205,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
 export function useAuth() {
   const context = useContext(AuthContext);
-  if (!context) throw new Error('useAuth must be used within AuthProvider');
+
+  if (!context) {
+    throw new Error("useAuth must be used within AuthProvider");
+  }
+
   return context;
 }
 
 export function getRoleDashboardPath(role: UserRole): string {
   switch (role) {
-    case 'admin': return '/admin/dashboard';
-    case 'trainer': return '/trainer/dashboard';
-    case 'client': return '/client/dashboard';
+    case "admin":
+      return "/admin/dashboard";
+    case "trainer":
+      return "/trainer/dashboard";
+    case "client":
+      return "/client/dashboard";
   }
 }
