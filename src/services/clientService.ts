@@ -19,3 +19,8 @@ export const getWorkoutHistory = async () => {
   const res = await API.get("/client/workouts/history");
   return res.data;
 };
+
+export const getClientNutritionPlans = async () => {
+  const res = await API.get("/nutrition/client");
+  return res.data;
+};
