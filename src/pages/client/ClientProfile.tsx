@@ -1,56 +1,201 @@
-import { useState } from 'react';
-import { useAuth } from '@/contexts/AuthContext';
-import { Camera } from 'lucide-react';
-import { toast } from '@/hooks/use-toast';
+import { useEffect, useState } from "react";
+import { toast } from "@/hooks/use-toast";
+import {
+  getClientProfile,
+  updateCurrentUser,
+  updateAvatar,
+  updateClientProfile,
+} from "@/services/profileService";
 
 export default function ClientProfile() {
-  const { user } = useAuth();
+  const [isSaving, setIsSaving] = useState(false);
+
   const [form, setForm] = useState({
-    name: user?.name || '',
-    email: user?.email || '',
-    phone: '+1 (555) 987-6543',
-    height: '178 cm',
-    weight: '82 kg',
-    goalWeight: '78 kg',
+    firstName: "",
+    lastName: "",
+    avatarUrl: "",
+    dateOfBirth: "",
+    gender: "",
+    height: "",
+    fitnessGoal: "",
   });
 
-  const handleSave = () => toast({ title: 'Profile updated' });
+  const fetchProfile = async () => {
+    try {
+      const userData = await getClientProfile();
+
+      setForm({
+        firstName: userData.firstName || userData.name?.split(" ")[0] || "",
+        lastName: userData.lastName || userData.name?.split(" ").slice(1).join(" ") || "",
+        avatarUrl: userData.avatarUrl || userData.avatar || "",
+        dateOfBirth: userData.clientProfile?.dateOfBirth
+          ? new Date(userData.clientProfile.dateOfBirth).toISOString().split("T")[0]
+          : "",
+        gender: userData.clientProfile?.gender || "",
+        height: userData.clientProfile?.height?.toString() || "",
+        fitnessGoal: userData.clientProfile?.fitnessGoal || "",
+      });
+    } catch (error) {
+      console.error("Error fetching client profile:", error);
+      toast({
+        title: "Failed to load profile",
+        description: "Could not fetch client profile data",
+        variant: "destructive",
+      });
+    }
+  };
+
+  useEffect(() => {
+    fetchProfile();
+  }, []);
+
+  const handleChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
+  ) => {
+    setForm((prev) => ({
+      ...prev,
+      [e.target.name]: e.target.value,
+    }));
+  };
+
+  const handleSave = async () => {
+    try {
+      setIsSaving(true);
+
+      await Promise.all([
+        updateCurrentUser({
+          firstName: form.firstName,
+          lastName: form.lastName,
+        }),
+        updateAvatar(form.avatarUrl),
+        updateClientProfile({
+          dateOfBirth: form.dateOfBirth || undefined,
+          gender: form.gender || undefined,
+          height: form.height ? Number(form.height) : undefined,
+          fitnessGoal: form.fitnessGoal || undefined,
+        }),
+      ]);
+
+      toast({
+        title: "Profile updated",
+        description: "Your client profile was saved successfully",
+      });
+
+      await fetchProfile();
+    } catch (error: any) {
+      toast({
+        title: "Failed to save profile",
+        description: error?.response?.data?.message || "Something went wrong",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold">Profile</h1>
-        <p className="mt-1 text-muted-foreground">Your personal information</p>
+        <h1 className="text-2xl font-bold">Client Profile</h1>
+        <p className="mt-1 text-muted-foreground">
+          Manage your personal details and fitness profile
+        </p>
       </div>
 
-      <div className="max-w-lg space-y-6">
-        <div className="flex items-center gap-4">
-          <div className="relative">
-            <div className="flex h-20 w-20 items-center justify-center rounded-full bg-primary text-2xl font-bold text-primary-foreground">
-              {form.name.charAt(0)}
-            </div>
-            <button className="absolute -bottom-1 -right-1 rounded-full bg-card border p-1.5 shadow-sm hover:bg-muted">
-              <Camera className="h-3.5 w-3.5" />
-            </button>
+      <div className="rounded-lg border bg-card p-5 card-shadow space-y-5">
+        <div className="grid gap-4 md:grid-cols-2">
+          <div className="space-y-2">
+            <label className="text-sm font-medium">First Name</label>
+            <input
+              name="firstName"
+              value={form.firstName}
+              onChange={handleChange}
+              className="w-full rounded-lg border bg-background px-3 py-2 text-sm"
+            />
           </div>
-          <div>
-            <p className="font-semibold">{form.name}</p>
-            <p className="text-sm text-muted-foreground capitalize">{user?.role}</p>
+
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Last Name</label>
+            <input
+              name="lastName"
+              value={form.lastName}
+              onChange={handleChange}
+              className="w-full rounded-lg border bg-background px-3 py-2 text-sm"
+            />
           </div>
         </div>
 
-        <div className="rounded-lg border bg-card p-6 card-shadow space-y-4">
-          {Object.entries(form).map(([key, value]) => (
-            <div key={key}>
-              <label className="text-sm font-medium capitalize">{key.replace(/([A-Z])/g, ' $1')}</label>
-              <input value={value} onChange={e => setForm(f => ({ ...f, [key]: e.target.value }))}
-                className="mt-1 w-full rounded-lg border bg-background px-3 py-2.5 text-sm outline-none ring-ring focus:ring-2" />
-            </div>
-          ))}
-          <button onClick={handleSave} className="gradient-primary rounded-lg px-6 py-2.5 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90">
-            Save Changes
-          </button>
+        <div className="space-y-2">
+          <label className="text-sm font-medium">Avatar URL</label>
+          <input
+            name="avatarUrl"
+            value={form.avatarUrl}
+            onChange={handleChange}
+            className="w-full rounded-lg border bg-background px-3 py-2 text-sm"
+            placeholder="https://example.com/avatar.jpg"
+          />
         </div>
+
+        <div className="grid gap-4 md:grid-cols-2">
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Date of Birth</label>
+            <input
+              type="date"
+              name="dateOfBirth"
+              value={form.dateOfBirth}
+              onChange={handleChange}
+              className="w-full rounded-lg border bg-background px-3 py-2 text-sm"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Gender</label>
+            <select
+              name="gender"
+              value={form.gender}
+              onChange={handleChange}
+              className="w-full rounded-lg border bg-background px-3 py-2 text-sm"
+            >
+              <option value="">Select gender</option>
+              <option value="Male">Male</option>
+              <option value="Female">Female</option>
+              <option value="Other">Other</option>
+            </select>
+          </div>
+        </div>
+
+        <div className="grid gap-4 md:grid-cols-2">
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Height (cm)</label>
+            <input
+              name="height"
+              type="number"
+              value={form.height}
+              onChange={handleChange}
+              className="w-full rounded-lg border bg-background px-3 py-2 text-sm"
+              placeholder="180"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Fitness Goal</label>
+            <input
+              name="fitnessGoal"
+              value={form.fitnessGoal}
+              onChange={handleChange}
+              className="w-full rounded-lg border bg-background px-3 py-2 text-sm"
+              placeholder="Build muscle, lose fat, improve endurance"
+            />
+          </div>
+        </div>
+
+        <button
+          onClick={handleSave}
+          disabled={isSaving}
+          className="gradient-primary rounded-lg px-4 py-2 text-sm font-semibold text-primary-foreground disabled:opacity-50"
+        >
+          {isSaving ? "Saving..." : "Save Profile"}
+        </button>
       </div>
     </div>
   );
