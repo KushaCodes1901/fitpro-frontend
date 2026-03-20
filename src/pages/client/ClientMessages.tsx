@@ -1,45 +1,165 @@
-import { useState } from 'react';
-import { Send } from 'lucide-react';
-import { cn } from '@/lib/utils';
-
-const messages = [
-  { id: '1', sender: 'trainer', content: 'Hey Mike! How\'s the new plan going?', time: '9:00 AM' },
-  { id: '2', sender: 'client', content: 'Great! Loving the new leg day routine', time: '9:05 AM' },
-  { id: '3', sender: 'trainer', content: 'Awesome! Remember to track your weights', time: '9:07 AM' },
-  { id: '4', sender: 'client', content: 'Will do! See you tomorrow 💪', time: '9:10 AM' },
-];
+import { useEffect, useState } from "react";
+import { toast } from "@/hooks/use-toast";
+import {
+  getMyMessages,
+  sendMessage,
+  getConversationWithUser,
+} from "@/services/messageService";
+import API from "@/lib/api";
 
 export default function ClientMessages() {
-  const [newMsg, setNewMsg] = useState('');
+  const [trainer, setTrainer] = useState<any | null>(null);
+  const [conversation, setConversation] = useState<any[]>([]);
+  const [content, setContent] = useState("");
+  const [isSending, setIsSending] = useState(false);
+
+  const fetchTrainer = async () => {
+    const res = await API.get("/client/trainer");
+    const trainerUser = res.data;
+
+    setTrainer({
+      id: trainerUser.id,
+      name: `${trainerUser.firstName || ""} ${trainerUser.lastName || ""}`.trim(),
+      email: trainerUser.email,
+    });
+  };
+
+  const fetchInitialData = async () => {
+    try {
+      await Promise.all([getMyMessages(), fetchTrainer()]);
+    } catch (error) {
+      console.error("Error loading client messages page:", error);
+      toast({
+        title: "Failed to load messages",
+        description: "Could not fetch your trainer or messages",
+        variant: "destructive",
+      });
+    }
+  };
+
+  useEffect(() => {
+    fetchInitialData();
+  }, []);
+
+  useEffect(() => {
+    const loadConversation = async () => {
+      if (!trainer?.id) return;
+
+      try {
+        const conversationData = await getConversationWithUser(trainer.id);
+        setConversation(conversationData);
+      } catch (error) {
+        console.error("Error fetching conversation:", error);
+      }
+    };
+
+    loadConversation();
+  }, [trainer]);
+
+  const handleSendMessage = async () => {
+    if (!trainer || !content.trim()) return;
+
+    try {
+      setIsSending(true);
+
+      await sendMessage({
+        receiverEmail: trainer.email,
+        content,
+      });
+
+      toast({
+        title: "Message sent",
+        description: `Sent to ${trainer.name}`,
+      });
+
+      setContent("");
+
+      const conversationData = await getConversationWithUser(trainer.id);
+      setConversation(conversationData);
+    } catch (error: any) {
+      toast({
+        title: "Failed to send message",
+        description: error?.response?.data?.message || "Something went wrong",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSending(false);
+    }
+  };
 
   return (
-    <div className="space-y-6">
-      <div>
+    <div className="rounded-lg border bg-card p-4 card-shadow">
+      <div className="border-b pb-3">
         <h1 className="text-2xl font-bold">Messages</h1>
-        <p className="mt-1 text-muted-foreground">Chat with your trainer</p>
+        <p className="mt-1 text-muted-foreground">
+          {trainer
+            ? `Conversation with ${trainer.name}`
+            : "No trainer assigned yet"}
+        </p>
       </div>
 
-      <div className="flex h-[500px] flex-col overflow-hidden rounded-lg border bg-card card-shadow">
-        <div className="border-b px-4 py-3">
-          <p className="font-semibold text-sm">Sarah Johnson</p>
-          <p className="text-xs text-muted-foreground">Your Trainer</p>
+      {!trainer ? (
+        <div className="py-10 text-sm text-muted-foreground">
+          You do not have an assigned trainer yet.
         </div>
-        <div className="flex-1 overflow-y-auto p-4 space-y-3">
-          {messages.map(m => (
-            <div key={m.id} className={cn("flex", m.sender === 'client' ? 'justify-end' : 'justify-start')}>
-              <div className={cn("max-w-[70%] rounded-lg px-3 py-2 text-sm", m.sender === 'client' ? 'bg-primary text-primary-foreground' : 'bg-muted')}>
-                <p>{m.content}</p>
-                <p className={cn("mt-1 text-[10px]", m.sender === 'client' ? 'text-primary-foreground/70' : 'text-muted-foreground')}>{m.time}</p>
+      ) : (
+        <>
+          <div className="mt-4 max-h-[420px] space-y-3 overflow-y-auto rounded-lg border p-4">
+            {conversation.length === 0 ? (
+              <div className="text-sm text-muted-foreground">
+                No messages yet.
               </div>
-            </div>
-          ))}
-        </div>
-        <div className="border-t p-3 flex gap-2">
-          <input value={newMsg} onChange={e => setNewMsg(e.target.value)} placeholder="Type a message..."
-            className="flex-1 rounded-lg border bg-background px-3 py-2 text-sm outline-none ring-ring focus:ring-2" />
-          <button className="gradient-primary rounded-lg p-2.5 text-primary-foreground"><Send className="h-4 w-4" /></button>
-        </div>
-      </div>
+            ) : (
+              conversation.map((message) => {
+                const isMine = message.sender?.email !== trainer.email;
+
+                return (
+                  <div
+                    key={message.id}
+                    className={`flex ${isMine ? "justify-end" : "justify-start"}`}
+                  >
+                    <div
+                      className={`max-w-[75%] rounded-lg px-3 py-2 text-sm ${
+                        isMine
+                          ? "bg-primary text-primary-foreground"
+                          : "bg-muted text-foreground"
+                      }`}
+                    >
+                      <div>{message.content}</div>
+                      <div
+                        className={`mt-1 text-xs ${
+                          isMine
+                            ? "text-primary-foreground/80"
+                            : "text-muted-foreground"
+                        }`}
+                      >
+                        {new Date(message.createdAt).toLocaleString()}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+
+          <div className="mt-4 space-y-3">
+            <textarea
+              placeholder="Type your message..."
+              value={content}
+              onChange={(e) => setContent(e.target.value)}
+              className="min-h-[100px] w-full rounded-lg border bg-background px-3 py-2 text-sm"
+            />
+
+            <button
+              onClick={handleSendMessage}
+              disabled={isSending}
+              className="gradient-primary rounded-lg px-4 py-2 text-sm font-semibold text-primary-foreground disabled:opacity-50"
+            >
+              {isSending ? "Sending..." : "Send Message"}
+            </button>
+          </div>
+        </>
+      )}
     </div>
   );
 }
