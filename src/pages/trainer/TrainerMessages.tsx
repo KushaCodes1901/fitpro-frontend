@@ -1,69 +1,201 @@
-import { useState } from 'react';
-import { Send } from 'lucide-react';
-import { cn } from '@/lib/utils';
-
-const conversations = [
-  { id: '1', name: 'Mike Chen', lastMsg: 'See you at 10!', time: '2m ago', unread: true },
-  { id: '2', name: 'Amy Liu', lastMsg: 'Thanks for the plan', time: '1h ago', unread: false },
-  { id: '3', name: 'Carlos Ruiz', lastMsg: 'Can we reschedule?', time: '3h ago', unread: true },
-];
-
-const chatMessages = [
-  { id: '1', sender: 'client', content: 'Hi! I completed today\'s workout', time: '10:30 AM' },
-  { id: '2', sender: 'trainer', content: 'Great work! How did you feel?', time: '10:32 AM' },
-  { id: '3', sender: 'client', content: 'Felt strong. Increased weight on squats.', time: '10:35 AM' },
-  { id: '4', sender: 'trainer', content: 'That\'s awesome progress! Keep it up 💪', time: '10:36 AM' },
-  { id: '5', sender: 'client', content: 'See you at 10!', time: '10:40 AM' },
-];
+import { useEffect, useState } from "react";
+import { toast } from "@/hooks/use-toast";
+import { getClients } from "@/services/trainerService";
+import {
+  getMyMessages,
+  sendMessage,
+  getConversationWithUser,
+} from "@/services/messageService";
 
 export default function TrainerMessages() {
-  const [activeChat, setActiveChat] = useState('1');
-  const [newMsg, setNewMsg] = useState('');
+  const [clients, setClients] = useState<any[]>([]);
+  const [messages, setMessages] = useState<any[]>([]);
+  const [conversation, setConversation] = useState<any[]>([]);
+  const [selectedClient, setSelectedClient] = useState<any | null>(null);
+  const [content, setContent] = useState("");
+  const [isSending, setIsSending] = useState(false);
+
+  const fetchInitialData = async () => {
+    try {
+      const [clientsData, messagesData] = await Promise.all([
+        getClients(),
+        getMyMessages(),
+      ]);
+
+      const mappedClients = clientsData.map((client: any) => ({
+        id: client.id,
+        userId: client.user?.id,
+        name: `${client.user?.firstName || ""} ${client.user?.lastName || ""}`.trim(),
+        email: client.user?.email || "",
+      }));
+
+      setClients(mappedClients);
+      setMessages(messagesData);
+    } catch (error) {
+      console.error("Error loading trainer messages page:", error);
+      toast({
+        title: "Failed to load messages",
+        description: "Could not fetch clients or messages",
+        variant: "destructive",
+      });
+    }
+  };
+
+  useEffect(() => {
+    fetchInitialData();
+  }, []);
+
+  const handleSelectClient = async (client: any) => {
+    try {
+      setSelectedClient(client);
+      const conversationData = await getConversationWithUser(client.userId);
+      setConversation(conversationData);
+    } catch (error) {
+      console.error("Error fetching conversation:", error);
+      toast({
+        title: "Failed to load conversation",
+        description: "Could not fetch messages for this client",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleSendMessage = async () => {
+    if (!selectedClient || !content.trim()) return;
+
+    try {
+      setIsSending(true);
+
+      await sendMessage({
+        receiverEmail: selectedClient.email,
+        content,
+      });
+
+      toast({
+        title: "Message sent",
+        description: `Sent to ${selectedClient.name}`,
+      });
+
+      setContent("");
+
+      const conversationData = await getConversationWithUser(selectedClient.userId);
+      setConversation(conversationData);
+
+      const messagesData = await getMyMessages();
+      setMessages(messagesData);
+    } catch (error: any) {
+      toast({
+        title: "Failed to send message",
+        description: error?.response?.data?.message || "Something went wrong",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSending(false);
+    }
+  };
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">Messages</h1>
-        <p className="mt-1 text-muted-foreground">Chat with your clients</p>
+    <div className="grid gap-6 lg:grid-cols-[320px,1fr]">
+      <div className="rounded-lg border bg-card p-4 card-shadow">
+        <h2 className="text-lg font-semibold">My Clients</h2>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Select a client to open the conversation
+        </p>
+
+        <div className="mt-4 space-y-2">
+          {clients.length === 0 ? (
+            <div className="text-sm text-muted-foreground">
+              No assigned clients yet.
+            </div>
+          ) : (
+            clients.map((client) => (
+              <button
+                key={client.id}
+                onClick={() => handleSelectClient(client)}
+                className={`w-full rounded-lg border p-3 text-left transition hover:bg-muted ${
+                  selectedClient?.id === client.id ? "border-primary bg-muted" : ""
+                }`}
+              >
+                <div className="font-medium">{client.name}</div>
+                <div className="text-sm text-muted-foreground">{client.email}</div>
+              </button>
+            ))
+          )}
+        </div>
       </div>
 
-      <div className="flex h-[500px] overflow-hidden rounded-lg border bg-card card-shadow">
-        {/* Sidebar */}
-        <div className="w-64 border-r overflow-y-auto hidden sm:block">
-          {conversations.map(c => (
-            <button key={c.id} onClick={() => setActiveChat(c.id)}
-              className={cn("w-full p-4 text-left border-b transition-colors hover:bg-muted/50", activeChat === c.id && "bg-muted")}>
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-semibold">{c.name}</span>
-                <span className="text-[10px] text-muted-foreground">{c.time}</span>
-              </div>
-              <p className="mt-0.5 text-xs text-muted-foreground truncate">{c.lastMsg}</p>
-              {c.unread && <span className="mt-1 inline-block h-1.5 w-1.5 rounded-full bg-primary" />}
-            </button>
-          ))}
+      <div className="rounded-lg border bg-card p-4 card-shadow">
+        <div className="border-b pb-3">
+          <h1 className="text-2xl font-bold">Messages</h1>
+          <p className="mt-1 text-muted-foreground">
+            {selectedClient
+              ? `Conversation with ${selectedClient.name}`
+              : "Select a client to start messaging"}
+          </p>
         </div>
 
-        {/* Chat */}
-        <div className="flex flex-1 flex-col">
-          <div className="border-b px-4 py-3">
-            <p className="font-semibold text-sm">{conversations.find(c => c.id === activeChat)?.name}</p>
+        {!selectedClient ? (
+          <div className="py-10 text-sm text-muted-foreground">
+            No conversation selected.
           </div>
-          <div className="flex-1 overflow-y-auto p-4 space-y-3">
-            {chatMessages.map(m => (
-              <div key={m.id} className={cn("flex", m.sender === 'trainer' ? 'justify-end' : 'justify-start')}>
-                <div className={cn("max-w-[70%] rounded-lg px-3 py-2 text-sm", m.sender === 'trainer' ? 'bg-primary text-primary-foreground' : 'bg-muted')}>
-                  <p>{m.content}</p>
-                  <p className={cn("mt-1 text-[10px]", m.sender === 'trainer' ? 'text-primary-foreground/70' : 'text-muted-foreground')}>{m.time}</p>
+        ) : (
+          <>
+            <div className="mt-4 max-h-[420px] space-y-3 overflow-y-auto rounded-lg border p-4">
+              {conversation.length === 0 ? (
+                <div className="text-sm text-muted-foreground">
+                  No messages yet.
                 </div>
-              </div>
-            ))}
-          </div>
-          <div className="border-t p-3 flex gap-2">
-            <input value={newMsg} onChange={e => setNewMsg(e.target.value)} placeholder="Type a message..."
-              className="flex-1 rounded-lg border bg-background px-3 py-2 text-sm outline-none ring-ring focus:ring-2" />
-            <button className="gradient-primary rounded-lg p-2.5 text-primary-foreground"><Send className="h-4 w-4" /></button>
-          </div>
-        </div>
+              ) : (
+                conversation.map((message) => {
+                  const isMine = message.sender?.email !== selectedClient.email;
+
+                  return (
+                    <div
+                      key={message.id}
+                      className={`flex ${isMine ? "justify-end" : "justify-start"}`}
+                    >
+                      <div
+                        className={`max-w-[75%] rounded-lg px-3 py-2 text-sm ${
+                          isMine
+                            ? "bg-primary text-primary-foreground"
+                            : "bg-muted text-foreground"
+                        }`}
+                      >
+                        <div>{message.content}</div>
+                        <div
+                          className={`mt-1 text-xs ${
+                            isMine
+                              ? "text-primary-foreground/80"
+                              : "text-muted-foreground"
+                          }`}
+                        >
+                          {new Date(message.createdAt).toLocaleString()}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+
+            <div className="mt-4 space-y-3">
+              <textarea
+                placeholder="Type your message..."
+                value={content}
+                onChange={(e) => setContent(e.target.value)}
+                className="min-h-[100px] w-full rounded-lg border bg-background px-3 py-2 text-sm"
+              />
+
+              <button
+                onClick={handleSendMessage}
+                disabled={isSending}
+                className="gradient-primary rounded-lg px-4 py-2 text-sm font-semibold text-primary-foreground disabled:opacity-50"
+              >
+                {isSending ? "Sending..." : "Send Message"}
+              </button>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );
