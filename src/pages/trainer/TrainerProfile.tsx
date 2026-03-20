@@ -1,62 +1,227 @@
-import { useState } from 'react';
-import { useAuth } from '@/contexts/AuthContext';
-import { Camera } from 'lucide-react';
-import { toast } from '@/hooks/use-toast';
+import { useEffect, useState } from "react";
+import { toast } from "@/hooks/use-toast";
+import {
+  getCurrentUser,
+  updateCurrentUser,
+  updateAvatar,
+  getTrainerProfile,
+  updateTrainerProfile,
+} from "@/services/profileService";
 
 export default function TrainerProfile() {
-  const { user } = useAuth();
+  const [isSaving, setIsSaving] = useState(false);
+
   const [form, setForm] = useState({
-    name: user?.name || '',
-    email: user?.email || '',
-    bio: 'Certified personal trainer with 5+ years of experience in strength training and nutrition coaching.',
-    specialization: 'Strength & Conditioning',
-    phone: '+1 (555) 123-4567',
+    firstName: "",
+    lastName: "",
+    avatarUrl: "",
+    bio: "",
+    specializations: "",
+    certifications: "",
+    yearsExperience: "",
+    phoneNumber: "",
   });
 
-  const handleSave = () => {
-    toast({ title: 'Profile updated' });
+  const fetchProfile = async () => {
+    try {
+      const [userData, trainerData] = await Promise.all([
+        getCurrentUser(),
+        getTrainerProfile(),
+      ]);
+
+      setForm({
+        firstName: userData.firstName || userData.name?.split(" ")[0] || "",
+        lastName: userData.lastName || userData.name?.split(" ").slice(1).join(" ") || "",
+        avatarUrl: userData.avatarUrl || userData.avatar || "",
+        bio: trainerData.bio || "",
+        specializations: (trainerData.specializations || []).join(", "),
+        certifications: (trainerData.certifications || []).join(", "),
+        yearsExperience: trainerData.yearsExperience?.toString() || "",
+        phoneNumber: trainerData.phoneNumber || "",
+      });
+    } catch (error) {
+      console.error("Error fetching trainer profile:", error);
+      toast({
+        title: "Failed to load profile",
+        description: "Could not fetch trainer profile data",
+        variant: "destructive",
+      });
+    }
+  };
+
+  useEffect(() => {
+    fetchProfile();
+  }, []);
+
+  const handleChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+  ) => {
+    setForm((prev) => ({
+      ...prev,
+      [e.target.name]: e.target.value,
+    }));
+  };
+
+  const parseList = (value: string) =>
+    value
+      .split(",")
+      .map((item) => item.trim())
+      .filter(Boolean);
+
+  const handleSave = async () => {
+    try {
+      setIsSaving(true);
+
+      await Promise.all([
+        updateCurrentUser({
+          firstName: form.firstName,
+          lastName: form.lastName,
+        }),
+        updateAvatar(form.avatarUrl),
+        updateTrainerProfile({
+          bio: form.bio || undefined,
+          specializations: parseList(form.specializations),
+          certifications: parseList(form.certifications),
+          yearsExperience: form.yearsExperience
+            ? Number(form.yearsExperience)
+            : undefined,
+          phoneNumber: form.phoneNumber || undefined,
+        }),
+      ]);
+
+      toast({
+        title: "Profile updated",
+        description: "Your trainer profile was saved successfully",
+      });
+
+      await fetchProfile();
+    } catch (error: any) {
+      toast({
+        title: "Failed to save profile",
+        description: error?.response?.data?.message || "Something went wrong",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold">Profile</h1>
-        <p className="mt-1 text-muted-foreground">Manage your personal information</p>
+        <h1 className="text-2xl font-bold">Trainer Profile</h1>
+        <p className="mt-1 text-muted-foreground">
+          Manage your public trainer profile and contact information
+        </p>
       </div>
 
-      <div className="max-w-lg space-y-6">
-        <div className="flex items-center gap-4">
-          <div className="relative">
-            <div className="flex h-20 w-20 items-center justify-center rounded-full bg-primary text-2xl font-bold text-primary-foreground">
-              {form.name.charAt(0)}
-            </div>
-            <button className="absolute -bottom-1 -right-1 rounded-full bg-card border p-1.5 shadow-sm hover:bg-muted">
-              <Camera className="h-3.5 w-3.5" />
-            </button>
+      <div className="rounded-lg border bg-card p-5 card-shadow space-y-5">
+        <div className="grid gap-4 md:grid-cols-2">
+          <div className="space-y-2">
+            <label className="text-sm font-medium">First Name</label>
+            <input
+              name="firstName"
+              value={form.firstName}
+              onChange={handleChange}
+              className="w-full rounded-lg border bg-background px-3 py-2 text-sm"
+            />
           </div>
-          <div>
-            <p className="font-semibold">{form.name}</p>
-            <p className="text-sm text-muted-foreground capitalize">{user?.role}</p>
+
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Last Name</label>
+            <input
+              name="lastName"
+              value={form.lastName}
+              onChange={handleChange}
+              className="w-full rounded-lg border bg-background px-3 py-2 text-sm"
+            />
           </div>
         </div>
 
-        <div className="rounded-lg border bg-card p-6 card-shadow space-y-4">
-          {Object.entries(form).map(([key, value]) => (
-            <div key={key}>
-              <label className="text-sm font-medium capitalize">{key}</label>
-              {key === 'bio' ? (
-                <textarea value={value} onChange={e => setForm(f => ({ ...f, [key]: e.target.value }))} rows={3}
-                  className="mt-1 w-full rounded-lg border bg-background px-3 py-2.5 text-sm outline-none ring-ring focus:ring-2" />
-              ) : (
-                <input value={value} onChange={e => setForm(f => ({ ...f, [key]: e.target.value }))}
-                  className="mt-1 w-full rounded-lg border bg-background px-3 py-2.5 text-sm outline-none ring-ring focus:ring-2" />
-              )}
-            </div>
-          ))}
-          <button onClick={handleSave} className="gradient-primary rounded-lg px-6 py-2.5 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90">
-            Save Changes
-          </button>
+        <div className="space-y-2">
+          <label className="text-sm font-medium">Avatar URL</label>
+          <input
+            name="avatarUrl"
+            value={form.avatarUrl}
+            onChange={handleChange}
+            className="w-full rounded-lg border bg-background px-3 py-2 text-sm"
+            placeholder="https://example.com/avatar.jpg"
+          />
         </div>
+
+        <div className="space-y-2">
+          <label className="text-sm font-medium">Bio</label>
+          <textarea
+            name="bio"
+            value={form.bio}
+            onChange={handleChange}
+            className="min-h-[120px] w-full rounded-lg border bg-background px-3 py-2 text-sm"
+            placeholder="Tell clients about your experience and coaching style"
+          />
+        </div>
+
+        <div className="grid gap-4 md:grid-cols-2">
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Specializations</label>
+            <input
+              name="specializations"
+              value={form.specializations}
+              onChange={handleChange}
+              className="w-full rounded-lg border bg-background px-3 py-2 text-sm"
+              placeholder="Strength Training, Fat Loss"
+            />
+            <p className="text-xs text-muted-foreground">
+              Separate multiple values with commas
+            </p>
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Certifications</label>
+            <input
+              name="certifications"
+              value={form.certifications}
+              onChange={handleChange}
+              className="w-full rounded-lg border bg-background px-3 py-2 text-sm"
+              placeholder="NASM CPT, ISSA"
+            />
+            <p className="text-xs text-muted-foreground">
+              Separate multiple values with commas
+            </p>
+          </div>
+        </div>
+
+        <div className="grid gap-4 md:grid-cols-2">
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Years of Experience</label>
+            <input
+              name="yearsExperience"
+              type="number"
+              value={form.yearsExperience}
+              onChange={handleChange}
+              className="w-full rounded-lg border bg-background px-3 py-2 text-sm"
+              placeholder="5"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Phone Number</label>
+            <input
+              name="phoneNumber"
+              value={form.phoneNumber}
+              onChange={handleChange}
+              className="w-full rounded-lg border bg-background px-3 py-2 text-sm"
+              placeholder="+38344111222"
+            />
+          </div>
+        </div>
+
+        <button
+          onClick={handleSave}
+          disabled={isSaving}
+          className="gradient-primary rounded-lg px-4 py-2 text-sm font-semibold text-primary-foreground disabled:opacity-50"
+        >
+          {isSaving ? "Saving..." : "Save Profile"}
+        </button>
       </div>
     </div>
   );
