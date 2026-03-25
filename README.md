@@ -85,19 +85,7 @@ Open that URL in your browser.
 
 Use users that exist in the backend database.
 
-Recommended test users:
-
-Admin
-Email: admin@fitpro.com
-Password: Admin123!
-Trainer
-Email: sarah_j.trainer@fitpro.com
-Password: SarahJTrainer123!
-Client
-Email: mike_c.client@fitpro.com
-Password: MikeCClient123!
-
-If these users do not exist, create them through:
+New users can be created through:
 
 backend seed
 frontend register page
